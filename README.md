@@ -2,7 +2,7 @@
 
 Calculadora HTML de una sola página (sin dependencias de servidor) para dimensionar hardware de SAP Business One 10 — App Server, DB Server (SQL Server o HANA) y PC de usuario — según Feature Package, tipo de despliegue, usuarios, add-ons y arquitectura de conexión cliente.
 
-Archivo vivo: [`index.html`](./index.html). Para usarla localmente basta abrir el archivo en un navegador; en línea, ver [GitHub Pages](#github-pages) abajo.
+Archivo vivo: [`index.html`](./index.html). En línea, en vivo: **https://contactosheinsohn2023-svg.github.io/sap-b1-calculadora-requisitos/**
 
 ## Aprendizaje general reutilizable: tooltips cortados por overflow del contenedor padre
 
@@ -27,15 +27,6 @@ Archivo vivo: [`index.html`](./index.html). Para usarla localmente basta abrir e
 - **2026-10-23:** FP 2605 autorizado por el cliente — pasa a ser el Feature Package por defecto y se re-etiqueta "Recomendado" (antes "Roadmap"); FP 2602 baja a "Estable" (antes "Recomendado").
 - **2026-10-23:** Agregado selector de % de Buffer Pool para SQL Server en actualización (25% Mínimo / 40% Recomendado / 60% Alto rendimiento), reemplazando el 40% fijo que tenía la fórmula. Agregado ícono ⓘ con tooltip explicando qué es el Buffer Pool.
 - **2026-10-23:** Corregido el tooltip cortado por overflow del panel lateral (ver aprendizaje general arriba). Versión de la calculadora actualizada a "v2.0 · oct 2026".
-
-## GitHub Pages
-
-Para publicar este sitio en `https://contactosheinsohn2023-svg.github.io/sap-b1-calculadora-requisitos/`:
-
-1. En este repo, ir a **Settings → Pages**.
-2. En "Build and deployment" → "Source", elegir **Deploy from a branch**.
-3. En "Branch", elegir **main** y la carpeta **/ (root)**. Guardar.
-4. Esperar 1–2 minutos; GitHub muestra la URL final arriba de esa misma sección.
 
 ## Espejo
 
