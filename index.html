@@ -149,6 +149,7 @@ body{font-family:var(--f);background:var(--bg0);color:var(--t1);font-size:13px;l
 .bok{background:var(--grn-bg);color:var(--grn);padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700}
 .breq{background:var(--org-bg);color:var(--org);padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700}
 .binf{background:var(--sap-lt);color:var(--sap-dk);padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700}
+.bout{background:#eceff1;color:#6b7a86;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;white-space:nowrap}
 /* NOTES */
 .note{display:flex;gap:10px;padding:8px 12px;border-radius:var(--rs);margin-bottom:6px;font-size:12px;line-height:1.55}
 .n-ok{background:var(--grn-bg);border-left:3px solid var(--grn);color:#1a5c1a}
@@ -172,7 +173,7 @@ body{font-family:var(--f);background:var(--bg0);color:var(--t1);font-size:13px;l
 <div class="shell">
   <div class="shell-logo">SAP</div>
   <div class="shell-title">Business One — Calculadora de Requisitos</div>
-  <div class="shell-ver">v2.0 · oct 2026<span class="info-ico" onmouseenter="positionTip(this)">i<span class="tip">Matrices de compatibilidad SAP: Platform Support Matrix v1.38 (SQL) y v1.41 (HANA), ambas del 2026-06-16. Buffer Pool SQL configurable agregado 2026-10-23.</span></span></div>
+  <div class="shell-ver">v2.1 · oct 2026<span class="info-ico" onmouseenter="positionTip(this)">i<span class="tip">Matrices de compatibilidad SAP: Platform Support Matrix v1.38 (SQL) y v1.41 (HANA), ambas del 2026-06-16. Buffer Pool SQL configurable agregado 2026-10-23. Versiones de SQL Server 2019 y anteriores marcadas como fuera de distribución.</span></span></div>
 </div>
 <div class="app">
 <aside class="panel">
@@ -600,7 +601,7 @@ function render() {
   if(fi.t==='warn'&&S.fp==='2502') notes.push({c:'n-warn',i:'⚠️',t:'FP 2502: problemas críticos (SAP Note 3598537). No recomendado.'});
   if(fi.t==='warn'&&S.fp==='2511') notes.push({c:'n-warn',i:'⚠️',t:'SP 2511: incompatibilidades con add-ons de terceros. Verificar compatibilidad.'});
   if(fi.t==='road')   notes.push({c:'n-warn',i:'🗓️',t:`${fi.l} en roadmap SAP (mar 2026), aún no lanzado. Verificar PAM oficial al instalar.`});
-  if(fi.t==='ok')     notes.push({c:'n-ok',i:'✅',t:'FP 2602: Feature Package recomendado (feb 2026). Tomcat modular, Web Client mejorado.'});
+  if(fi.t==='ok')     notes.push({c:'n-ok',i:'✅',t:`${fi.l}: Feature Package recomendado.`});
   if(sw.ws&&sw.ws.some(w=>w.includes('upgrade only'))) notes.push({c:'n-warn',i:'⚠️',t:'WS 2012 R2 solo para clientes en actualización, no instalaciones nuevas en 10.0.'});
 
   // ── NOTAS APP SERVER ──
@@ -626,6 +627,7 @@ function render() {
       notesDB.push({c:'n-info',i:'📐',t:`RAM = BD×40% (${Math.round(S.dbsize*0.4)} GB) + OS 8 GB + overhead 4 GB + sesiones = ${db.recRAM} GB. Mínimo viable (buffer 25%): ${db.minRAM} GB.`});
       notesDB.push({c:'n-info',i:'💽',t:`MDF=BD×1.5=${db.dData} GB · LDF=BD×0.5=${db.dLog} GB · TempDB=25% MDF=${db.dTemp} GB · Backup=BD×2=${db.dBack} GB.`});
     }
+    notesDB.push({c:'n-info',i:'🏷️',t:'SQL Server 2019 y anteriores: fuera de distribución (ya no se venden licencias nuevas). Para servidores nuevos usar SQL Server 2022.'});
     notesDB.push({c:'n-info',i:'🔑',t:'Modo mixto obligatorio. Collation: SQL_Latin1_General_CP1_CI_AS. Max Server Memory = 90% RAM. MaxDOP = cores.'});
     if(['2302','2305','2308','2311','2402','2405','2408','2411','2502','2505','2508','2511','2602','2605','2608'].includes(S.fp)){
       notesDB.push({c:'n-info',i:'🔌',t:'ODBC: SQL 2016/2017→Driver 13 · SQL 2019→Driver 17 · SQL 2022→Driver 18. Instalar en DB Server y App Server.'});
@@ -740,7 +742,7 @@ function render() {
         <div class="sw-hdr">🗄️ ${isH?'SAP HANA / SUSE Linux':'SQL Server'}</div>
         <table class="sw-t">${isH
           ?`<tr><td>SAP HANA</td><td style="font-size:11px">${sw.hana}</td></tr><tr><td>SUSE Linux</td><td style="font-size:11px">${sw.sles}</td></tr>`
-          :sw.sql.map(s=>`<tr><td>${s}</td><td><span class="bok">SOPORTADO</span></td></tr>`).join('')
+          :sw.sql.map(s=>{const out=/SQL (2012|2014|2016|2017|2019)$/.test(s);return `<tr><td>${s}</td><td>${out?'<span class="bout">FUERA DE DISTRIBUCIÓN</span>':'<span class="bok">SOPORTADO</span>'}</td></tr>`;}).join('')
         }</table>
       </div>
       <div class="sw-card">
