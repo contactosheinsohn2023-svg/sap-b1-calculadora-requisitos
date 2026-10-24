@@ -173,7 +173,7 @@ body{font-family:var(--f);background:var(--bg0);color:var(--t1);font-size:13px;l
 <div class="shell">
   <div class="shell-logo">SAP</div>
   <div class="shell-title">Business One — Calculadora de Requisitos</div>
-  <div class="shell-ver">v2.1 · oct 2026<span class="info-ico" onmouseenter="positionTip(this)">i<span class="tip">Matrices de compatibilidad SAP: Platform Support Matrix v1.38 (SQL) y v1.41 (HANA), ambas del 2026-06-16. Buffer Pool SQL configurable agregado 2026-10-23. Versiones de SQL Server 2019 y anteriores marcadas como fuera de distribución.</span></span></div>
+  <div class="shell-ver">v2.2 · oct 2026<span class="info-ico" onmouseenter="positionTip(this)">i<span class="tip">Matrices de compatibilidad SAP: Platform Support Matrix v1.38 (SQL, 2026-06-16) y v1.42 (HANA, 2026-08-28). Avisos EDS/ETS según SAP Notes 3644378 y 3743696. FP 2608 marcado como lanzado. Buffer Pool SQL configurable agregado 2026-10-23. Versiones de SQL Server 2019 y anteriores marcadas como fuera de distribución.</span></span></div>
 </div>
 <div class="app">
 <aside class="panel">
@@ -362,7 +362,7 @@ const FP = {
     {v:'2511',l:'10.0 SP 2511', t:'warn',  tx:'Problemas add-on'},
     {v:'2602',l:'10.0 FP 2602', t:'stable',tx:'Estable'},
     {v:'2605',l:'10.0 SP 2605', t:'ok',    tx:'Recomendado'},
-    {v:'2608',l:'10.0 FP 2608', t:'road',  tx:'Roadmap'},
+    {v:'2608',l:'10.0 FP 2608', t:'stable',tx:'Lanzado'},
   ],
   hana:[
     {v:'9.3', l:'9.3 PL14',     t:'eom',   tx:'Fin soporte'},
@@ -382,12 +382,12 @@ const FP = {
     {v:'2511',l:'10.0 SP 2511', t:'warn',  tx:'Problemas add-on'},
     {v:'2602',l:'10.0 FP 2602', t:'stable',tx:'Estable'},
     {v:'2605',l:'10.0 SP 2605', t:'ok',    tx:'Recomendado'},
-    {v:'2608',l:'10.0 FP 2608', t:'road',  tx:'Roadmap'},
+    {v:'2608',l:'10.0 FP 2608', t:'stable',tx:'Lanzado'},
   ]
 };
 
 // ═══════════════════════════════════════
-// PLATFORM MATRICES (v1.37 corregidas)
+// PLATFORM MATRICES (SQL v1.38 · HANA v1.42 · corregidas)
 // ═══════════════════════════════════════
 const SW_SQL = {
   '9.3': {ws:['WS 2012 R2','WS 2016','WS 2019'],sql:['SQL 2012','SQL 2014','SQL 2016','SQL 2017'],wc:['Win 7 SP1','Win 8.1','Win 10'],office:'2013, 2016, 2019',odbc:'11/13/17',dotnet:'4.5.2'},
@@ -416,12 +416,12 @@ const SW_SQL = {
 const SW_HANA = {
   '9.3': {sles:'SLES 12 SP3 / SP4',hana:'HANA 2.0 SPS 02–04',ws:['WS 2012 R2','WS 2016','WS 2019'],wc:['Win 7 SP1','Win 10'],office:'2013, 2016',dotnet:'4.5.2'},
   '2008':{sles:'SLES 15 SP0 / SP1',hana:'HANA 2.0 SPS 04–05',ws:['WS 2016','WS 2019'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
-  '2102':{sles:'SLES 15 SP1 / SP2',hana:'HANA 2.0 SPS 05',ws:['WS 2016','WS 2019'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
-  '2105':{sles:'SLES 15 SP1 / SP2',hana:'HANA 2.0 SPS 05',ws:['WS 2016','WS 2019'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
-  '2111':{sles:'SLES 15 SP1 / SP2 / SP3',hana:'HANA 2.0 SPS 05–06',ws:['WS 2016','WS 2019'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
-  '2202':{sles:'SLES 15 SP2 / SP3',hana:'HANA 2.0 SPS 05–06',ws:['WS 2016','WS 2019','WS 2022'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
-  '2208':{sles:'SLES 15 SP2 / SP3',hana:'HANA 2.0 SPS 05 Rev.056/059',ws:['WS 2016','WS 2019','WS 2022'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
-  '2305':{sles:'SLES 15 SP2 / SP3 / SP4',hana:'HANA 2.0 SPS 06–07',ws:['WS 2016','WS 2019','WS 2022'],wc:['Win 10 x64','Win 11 x64'],office:'2019',dotnet:'4.8'},
+  '2102':{sles:'SLES 15 SP1 / SP2',hana:'HANA 2.0 SPS 05',ws:['WS 2012 R2 (upgrade only)','WS 2016','WS 2019'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
+  '2105':{sles:'SLES 15 SP1 / SP2',hana:'HANA 2.0 SPS 05',ws:['WS 2012 R2 (upgrade only)','WS 2016','WS 2019'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
+  '2111':{sles:'SLES 15 SP1 / SP2 / SP3',hana:'HANA 2.0 SPS 05–06',ws:['WS 2012 R2 (upgrade only)','WS 2016','WS 2019'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
+  '2202':{sles:'SLES 15 SP2 / SP3',hana:'HANA 2.0 SPS 05–06',ws:['WS 2012 R2 (upgrade only)','WS 2016','WS 2019','WS 2022'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
+  '2208':{sles:'SLES 15 SP2 / SP3',hana:'HANA 2.0 SPS 05 Rev.056/059',ws:['WS 2012 R2 (upgrade only)','WS 2016','WS 2019','WS 2022'],wc:['Win 10 x64'],office:'2016, 2019',dotnet:'4.8'},
+  '2305':{sles:'SLES 15 SP2 / SP3 / SP4',hana:'HANA 2.0 SPS 06–07',ws:['WS 2012 R2 (upgrade only)','WS 2016','WS 2019','WS 2022'],wc:['Win 10 x64','Win 11 x64'],office:'2019',dotnet:'4.8'},
   '2311':{sles:'SLES 15 SP2 / SP3 / SP4 / SP5',hana:'HANA 2.0 SPS 07',ws:['WS 2016','WS 2019','WS 2022'],wc:['Win 10 x64','Win 11 x64'],office:'2019',dotnet:'4.8'},
   '2402':{sles:'SLES 15 SP3 / SP4 / SP5',hana:'HANA 2.0 SPS 07',ws:['WS 2016','WS 2019','WS 2022'],wc:['Win 10 x64','Win 11 x64'],office:'2019',dotnet:'4.8'},
   '2408':{sles:'SLES 15 SP3 / SP4 / SP5',hana:'HANA 2.0 SPS 07–08',ws:['WS 2016','WS 2019','WS 2022'],wc:['Win 10 x64','Win 11 x64'],office:'2019, 2021',dotnet:'4.8'},
@@ -602,6 +602,11 @@ function render() {
   if(fi.t==='warn'&&S.fp==='2511') notes.push({c:'n-warn',i:'⚠️',t:'SP 2511: incompatibilidades con add-ons de terceros. Verificar compatibilidad.'});
   if(fi.t==='road')   notes.push({c:'n-warn',i:'🗓️',t:`${fi.l} en roadmap SAP (mar 2026), aún no lanzado. Verificar PAM oficial al instalar.`});
   if(fi.t==='ok')     notes.push({c:'n-ok',i:'✅',t:`${fi.l}: Feature Package recomendado.`});
+  if(isH && S.fp!=='9.3'){
+    if(sw.ws.includes('WS 2016')) notes.push({c:'n-warn',i:'⚠️',t:'WS 2016: la instalación de EDS/ETS (documentos electrónicos) falla si el certificado SSL se creó con AES256-SHA256 — limitación del sistema (SAP Note 3644378). Alternativa: Windows Server 2019 o superior.'});
+    if(sw.sles) notes.push({c:'n-warn',i:'⚠️',t:'Documentos electrónicos (EDS): la instalación falla en SLES 15 SP5 o anterior; se requiere SLES 15 SP6 o superior (SAP Note 3743696). ETS tampoco soporta SP5 (matriz HANA v1.42, nota al pie 18).'});
+    if(sw.wc.includes('Win 10 x64')||/2016|2019/.test(sw.office)) notes.push({c:'n-info',i:'🗓️',t:'Microsoft terminó el soporte de Windows 10 y de Office 2016/2019 el 14-oct-2025. La matriz HANA v1.42 de SAP aún los lista, pero para equipos nuevos conviene Windows 11 y Office 2021.'});
+  }
   if(sw.ws&&sw.ws.some(w=>w.includes('upgrade only'))) notes.push({c:'n-warn',i:'⚠️',t:'WS 2012 R2 solo para clientes en actualización, no instalaciones nuevas en 10.0.'});
 
   // ── NOTAS APP SERVER ──
