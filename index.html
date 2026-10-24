@@ -173,7 +173,7 @@ body{font-family:var(--f);background:var(--bg0);color:var(--t1);font-size:13px;l
 <div class="shell">
   <div class="shell-logo">SAP</div>
   <div class="shell-title">Business One — Calculadora de Requisitos</div>
-  <div class="shell-ver">v2.2 · oct 2026<span class="info-ico" onmouseenter="positionTip(this)">i<span class="tip">Matrices de compatibilidad SAP: Platform Support Matrix v1.38 (SQL, 2026-06-16) y v1.42 (HANA, 2026-08-28). Avisos EDS/ETS según SAP Notes 3644378 y 3743696. FP 2608 marcado como lanzado. Buffer Pool SQL configurable agregado 2026-10-23. Versiones de SQL Server 2019 y anteriores marcadas como fuera de distribución.</span></span></div>
+  <div class="shell-ver">v2.3 · oct 2026<span class="info-ico" onmouseenter="positionTip(this)">i<span class="tip">Matrices de compatibilidad SAP: Platform Support Matrix v1.38 (SQL, 2026-06-16) y v1.42 (HANA, 2026-08-28). Avisos EDS/ETS según SAP Notes 3644378 y 3743696. FP 2608 marcado como lanzado. SLES 15 SP5/SP6 marcados fuera de soporte general (SP7 vigente). Buffer Pool SQL configurable agregado 2026-10-23. Versiones de SQL Server 2019 y anteriores marcadas como fuera de distribución.</span></span></div>
 </div>
 <div class="app">
 <aside class="panel">
@@ -582,6 +582,16 @@ function calcDBHANA() {
 function bar(gb,tot){ return `<div class="bar-wrap"><div class="bar" style="width:${Math.min(100,Math.round(gb/tot*100))}%"></div></div>`; }
 function fmtDisk(gb){ return gb>=1000?(gb/1000).toFixed(1)+' TB':gb+' GB'; }
 
+function slesRows(s){
+  const m=/^SLES 15 (.+)$/.exec(s||'');
+  if(!m) return `<tr><td>SUSE Linux</td><td style="font-size:11px">${s}</td></tr>`;
+  return m[1].split(' / ').map(x=>{
+    const n=parseInt((/SP(\d+)/.exec(x)||[])[1],10);
+    const cur=n>=7;
+    return `<tr><td>SLES 15 ${x}</td><td>${cur?'<span class="bok">VIGENTE</span>':'<span class="bout">FUERA DE SOPORTE GENERAL</span>'}</td></tr>`;
+  }).join('');
+}
+
 // ═══════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════
@@ -604,6 +614,7 @@ function render() {
   if(fi.t==='ok')     notes.push({c:'n-ok',i:'✅',t:`${fi.l}: Feature Package recomendado.`});
   if(isH && S.fp!=='9.3'){
     if(sw.ws.includes('WS 2016')) notes.push({c:'n-warn',i:'⚠️',t:'WS 2016: la instalación de EDS/ETS (documentos electrónicos) falla si el certificado SSL se creó con AES256-SHA256 — limitación del sistema (SAP Note 3644378). Alternativa: Windows Server 2019 o superior.'});
+    if(sw.sles&&/^SLES 15/.test(sw.sles)) notes.push({c:'n-info',i:'🏷️',t:'SUSE: SLES 15 SP5 salió de soporte general el 31-dic-2024 (LTSS hasta 31-dic-2027) y SP6 el 31-dic-2025 (LTSS hasta 31-dic-2028). SP7 es el vigente (soporte general hasta 31-jul-2031). Para servidores nuevos usar SLES 15 SP7. Fechas: SUSE / endoflife.date, oct 2026.'});
     if(sw.sles) notes.push({c:'n-warn',i:'⚠️',t:'Documentos electrónicos (EDS): la instalación falla en SLES 15 SP5 o anterior; se requiere SLES 15 SP6 o superior (SAP Note 3743696). ETS tampoco soporta SP5 (matriz HANA v1.42, nota al pie 18).'});
     if(sw.wc.includes('Win 10 x64')||/2016|2019/.test(sw.office)) notes.push({c:'n-info',i:'🗓️',t:'Microsoft terminó el soporte de Windows 10 y de Office 2016/2019 el 14-oct-2025. La matriz HANA v1.42 de SAP aún los lista, pero para equipos nuevos conviene Windows 11 y Office 2021.'});
   }
@@ -746,7 +757,7 @@ function render() {
       <div class="sw-card">
         <div class="sw-hdr">🗄️ ${isH?'SAP HANA / SUSE Linux':'SQL Server'}</div>
         <table class="sw-t">${isH
-          ?`<tr><td>SAP HANA</td><td style="font-size:11px">${sw.hana}</td></tr><tr><td>SUSE Linux</td><td style="font-size:11px">${sw.sles}</td></tr>`
+          ?`<tr><td>SAP HANA</td><td style="font-size:11px">${sw.hana}</td></tr>${slesRows(sw.sles)}`
           :sw.sql.map(s=>{const out=/SQL (2012|2014|2016|2017|2019)$/.test(s);return `<tr><td>${s}</td><td>${out?'<span class="bout">FUERA DE DISTRIBUCIÓN</span>':'<span class="bok">SOPORTADO</span>'}</td></tr>`;}).join('')
         }</table>
       </div>
