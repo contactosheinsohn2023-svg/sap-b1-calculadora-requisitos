@@ -701,7 +701,7 @@ const MARCAS_ACENTO=new RegExp('['+String.fromCharCode(0x300)+'-'+String.fromCha
 function miles(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
 function gb(n){ return miles(n)+' GB'; }
 function coma(n){ return String(n).replace('.',','); }
-function limpiarTexto(s){ return String(s==null?'':s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g,''); }
+function limpiarTexto(s){ return String(s==null?'':s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g,''); }
 function lineas(s){ return limpiarTexto(s).split(/\r?\n/).map(x=>x.trim()).filter(Boolean); }
 function fechaCorta(iso){ const [y,m,d]=iso.split('-'); return d+'/'+m+'/'+y; }
 // App Server sin usuarios RDP: mismo cálculo con 0 usuarios (se restaura el estado al terminar)
