@@ -19,7 +19,7 @@
 <ul id="out"><li>Corriendo…</li></ul>
 <iframe id="app" src="index.html"></iframe>
 <script>
-// Valores validados (v2.3 a v3.0, 2026-11-09). Cambiarlos solo cuando Ghost apruebe un cambio de fórmula.
+// Valores validados (v2.3 a v3.1, 2026-11-09). Cambiarlos solo cuando Ghost apruebe un cambio de fórmula.
 const BASE={db:'sql',fp:'2605',deploy:'onpremise',users:10,usersApp:3,addons:0,dbsize:100,bufferPct:40,tipo:'nueva',conexion:'appserver'};
 const CASOS={
   'A · SQL nueva, 10 usuarios':{s:{},app:{recRAM:40,minRAM:24,cores:2,usersOnApp:10},db:{recRAM:32,minRAM:20,cores:4,dTotal:450,dData:100,dLog:30}},
@@ -56,6 +56,27 @@ document.getElementById('app').addEventListener('load',e=>{
     const hay=w.document.getElementById('main').textContent.includes(txt);
     linea(hay===debe,`Texto ${debe?'presente':'ausente'}: "${txt}"`);
   }
+  // Informe en Word (v3.1): textos con cifras de la calculadora y archivo .docx
+  const FORM={cliente:'Cliente X',para:'Luis',fecha:'2026-11-09',tiempo:'',modelo:'virtual',participantes:[{n:'A',c:'B',e:'C'}],consideraciones:'',compromisos:''};
+  const fila=(d,i,k)=>(d.bloques[i].filas.find(r=>r[0]===k)||[])[1];
+  const eq=(nombre,real,esperado)=>linea(real===esperado,'Informe · '+nombre+(real===esperado?'':' → '+real+' (esperado '+esperado+')'));
+  Object.assign(w.S,BASE,{tipo:'actualizacion',dbsize:500,users:40,bufferPct:40});
+  let d=w.buildReportData(FORM);
+  eq('SQL actualización 500 GB, 40 usuarios: BD',[fila(d,0,'RAM'),fila(d,0,'Capacidad de almacenamiento'),fila(d,0,'Procesador')].join(' | '),'256 GB | 2.250 GB | 4 Core');
+  eq('SQL actualización 500 GB, 40 usuarios: App Server',[fila(d,1,'RAM'),fila(d,1,'Procesador'),fila(d,1,'Capacidad de almacenamiento')].join(' | '),'16 GB sin usuarios RDP / 96 GB con usuarios RDP | 2 Core sin usuarios RDP / 8 Core con usuarios RDP | 100 GB');
+  Object.assign(w.S,BASE,{db:'hana',users:60});
+  d=w.buildReportData(FORM);
+  eq('HANA nueva, 60 usuarios: BD',[fila(d,0,'S.O. Base'),fila(d,0,'RAM'),fila(d,0,'Capacidad de almacenamiento')].join(' | '),'SUSE Linux Enterprise Server 15 SP7 | 256 GB | 2.000 GB');
+  linea(!d.obs.join(' ').includes('collation'),'Informe · HANA no menciona el collation de SQL Server');
+  Object.assign(w.S,BASE);
+  d=w.buildReportData({...FORM,cliente:'Peñón & Cía'});
+  eq('título y nombre de archivo con tildes',d.titulo+' | '+d.archivo,'INFORME DE REVISIÓN PEÑÓN & CÍA | Informe de revision - Penon Cia - 2026-11-09.docx');
+  const txt=x=>new TextDecoder().decode(w.buildDocx(x));
+  const bytes=w.buildDocx(w.buildReportData({...FORM,cliente:'<b>X</b>'}));
+  const t1=new TextDecoder().decode(bytes);
+  linea(bytes[0]===0x50&&bytes[1]===0x4B&&t1.includes('&lt;b&gt;X&lt;/b&gt;')&&!t1.includes('X</b>'),'Informe · .docx es un zip y el texto del usuario va escapado');
+  const t2=txt(w.buildReportData(FORM)), t3=txt(w.buildReportData({...FORM,consideraciones:'Uno',compromisos:'Dos'}));
+  linea(!t2.includes('Consideraciones')&&!t2.includes('Compromisos')&&t3.includes('6. Consideraciones')&&t3.includes('7. Compromisos'),'Informe · Consideraciones y Compromisos solo salen si se llenan');
   const fallas=out.filter(l=>l.includes('FALLA')).length;
   out.unshift(`<li class="${fallas?'ko':'ok'}"><b>${fallas?fallas+' prueba(s) fallan':'Todas las pruebas pasan'}</b></li>`);
   document.getElementById('out').innerHTML=out.join('');

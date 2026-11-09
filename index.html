@@ -7,13 +7,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 108 108'><rect width='108' height='108' rx='24' fill='%230F1419'/><g transform='translate(54 54) scale(1.4) translate(-64 -64)'><path d='M36,62 C36,48 44,40 54,40 C64,40 72,48 72,62 L72,82 Q67.5,76 63,82 Q58.5,88 54,82 Q49.5,76 45,82 Q40.5,88 36,82 Z' fill='%23F8FAFC'/><ellipse cx='49' cy='57' rx='2.6' ry='3.6' fill='%230F1419'/><ellipse cx='59' cy='57' rx='2.6' ry='3.6' fill='%230F1419'/><path d='M82,48 Q83,54 89,55 Q83,56 82,62 Q81,56 75,55 Q81,54 82,48 Z' fill='%23FBBF24'/><path d='M76,69 v13 a8,3 0 0 0 16,0 v-13 a8,3 0 0 0 -16,0 Z' fill='%230070F2'/><path d='M76,69 a8,3 0 0 0 16,0 M76,75.5 a8,3 0 0 0 16,0' fill='none' stroke='%23F8FAFC' stroke-width='1.4' stroke-linecap='round'/></g></svg>">
 <meta name="theme-color" content="#0070f2">
-<link rel="stylesheet" href="styles.css?v=3.0"><!-- ?v=: subirlo en cada versión para que el navegador no use la copia vieja -->
+<link rel="stylesheet" href="styles.css?v=3.1"><!-- ?v=: subirlo en cada versión para que el navegador no use la copia vieja -->
 </head>
 <body class="wz-open">
 <div class="shell">
   <div class="shell-logo">SAP</div>
   <div class="shell-title">Business One — Calculadora de Requisitos</div>
-  <div class="shell-ver">v3.0 · nov 2026<span class="info-ico" onmouseenter="positionTip(this)">i<span class="tip">Matrices de compatibilidad SAP: Platform Support Matrix v1.38 (SQL, 2026-06-16) y v1.42 (HANA, 2026-08-28). Avisos EDS/ETS según SAP Notes 3644378 y 3743696. FP 2608 marcado como lanzado. SLES 15 SP5/SP6 marcados fuera de soporte general (SP7 vigente). Buffer Pool SQL configurable agregado 2026-10-23. Versiones de SQL Server 2019 y anteriores marcadas como fuera de distribución. Rediseño visual (v2.4, 2026-11-06): estilos, jerarquía, estados y favicon; cálculos sin cambios. v3.0 (2026-11-09): pantalla de bienvenida (motor y tipo de instalación), botón Generar informe, estilos y lógica en archivos aparte; cálculos sin cambios.</span></span></div>
+  <div class="shell-ver">v3.1 · nov 2026<span class="info-ico" onmouseenter="positionTip(this)">i<span class="tip">Matrices de compatibilidad SAP: Platform Support Matrix v1.38 (SQL, 2026-06-16) y v1.42 (HANA, 2026-08-28). Avisos EDS/ETS según SAP Notes 3644378 y 3743696. FP 2608 marcado como lanzado. SLES 15 SP5/SP6 marcados fuera de soporte general (SP7 vigente). Buffer Pool SQL configurable agregado 2026-10-23. Versiones de SQL Server 2019 y anteriores marcadas como fuera de distribución. Rediseño visual (v2.4, 2026-11-06): estilos, jerarquía, estados y favicon; cálculos sin cambios. v3.0 (2026-11-09): pantalla de bienvenida (motor y tipo de instalación), botón Generar informe, estilos y lógica en archivos aparte; cálculos sin cambios. v3.1 (2026-11-09): el informe se descarga en Word (formato Informe de revisión); cálculos sin cambios.</span></span></div>
 </div>
 
 <!-- BIENVENIDA (v3.0): paso 1 motor, paso 2 tipo de instalación. Lógica en app.js, sección BIENVENIDA E INFORME -->
@@ -197,35 +197,38 @@
     <button class="tb-btn" onclick="goHome()">← Inicio</button>
     <button class="tb-btn primary" onclick="openReport()">Generar informe</button>
   </div>
-  <!-- Encabezado del informe: solo se ve al imprimir (v3.0). El texto del informe queda por definir con Ghost. -->
-  <section class="report-head" id="report-head" hidden>
-    <p class="rh-brand">SAP Business One · Informe de requisitos de hardware</p>
-    <h1 class="rh-title">Informe de dimensionamiento</h1>
-    <dl class="rh-meta">
-      <div><dt>Dirigido a</dt><dd id="rh-para"></dd></div>
-      <div><dt>Fecha</dt><dd id="rh-fecha"></dd></div>
-      <div><dt>Configuración</dt><dd id="rh-conf"></dd></div>
-    </dl>
-  </section>
   <div id="main"></div>
 </main>
 </div>
 
-<!-- Datos del informe (v3.0) -->
+<!-- Datos del informe (v3.1): se descarga en Word -->
 <dialog class="dlg" id="dlg-informe" aria-labelledby="dlg-t">
-  <form onsubmit="return printReport(event)">
+  <form onsubmit="return descargarInforme(event)">
     <h2 class="dlg-title" id="dlg-t">Generar informe</h2>
-    <p class="dlg-sub">Se arma con la configuración y los resultados que ves en pantalla. En la ventana de impresión puedes elegir "Guardar como PDF".</p>
+    <p class="dlg-sub">Informe de revisión en Word, con la configuración y los resultados que ves en pantalla. Solo texto.</p>
+    <label class="dlg-lbl" for="inf-cliente">Nombre del cliente</label>
+    <input class="dim-num" id="inf-cliente" required maxlength="120" autocomplete="off">
     <label class="dlg-lbl" for="inf-para">Dirigido a</label>
     <input class="dim-num" id="inf-para" required maxlength="120" autocomplete="off">
-    <label class="dlg-lbl" for="inf-fecha">Fecha</label>
-    <input class="dim-num" type="date" id="inf-fecha" required>
+    <div class="dlg-two">
+      <div><label class="dlg-lbl" for="inf-fecha">Fecha de revisión</label><input class="dim-num" type="date" id="inf-fecha" required></div>
+      <div><label class="dlg-lbl" for="inf-tiempo">Tiempo de la actividad <span class="dlg-opt">(opcional)</span></label><input class="dim-num" id="inf-tiempo" maxlength="40" placeholder="Ej.: 1 hora" autocomplete="off"></div>
+    </div>
+    <label class="dlg-lbl" for="inf-modelo">Servidores</label>
+    <select class="dim-sel" id="inf-modelo"><option value="virtual">Virtualizados</option><option value="fisico">Físicos</option></select>
+    <p class="dlg-lbl">Participantes de la revisión</p>
+    <div id="inf-parts"></div>
+    <button type="button" class="tb-btn part-add" onclick="addPart()">+ Agregar participante</button>
+    <label class="dlg-lbl" for="inf-consid">Consideraciones <span class="dlg-opt">(opcional, una por línea)</span></label>
+    <textarea class="dim-num dlg-ta" id="inf-consid" rows="3" maxlength="2000"></textarea>
+    <label class="dlg-lbl" for="inf-compr">Compromisos <span class="dlg-opt">(opcional, uno por línea)</span></label>
+    <textarea class="dim-num dlg-ta" id="inf-compr" rows="3" maxlength="2000"></textarea>
     <div class="dlg-actions">
       <button type="button" class="tb-btn" onclick="document.getElementById('dlg-informe').close()">Cancelar</button>
-      <button type="submit" class="tb-btn primary">Generar e imprimir</button>
+      <button type="submit" class="tb-btn primary">Descargar Word</button>
     </div>
   </form>
 </dialog>
-<script src="app.js?v=3.0"></script>
+<script src="app.js?v=3.1"></script>
 </body>
 </html>

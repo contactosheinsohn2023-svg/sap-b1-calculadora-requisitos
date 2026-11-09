@@ -655,7 +655,7 @@ function fixDBSize(el){
   setDBSize(el.value);
 }
 // ═══════════════════════════════════════
-// BIENVENIDA E INFORME (v3.0, 2026-11-09)
+// BIENVENIDA (v3.0, 2026-11-09)
 // Solo navegación y presentación: usa selectDB/selectTipo de arriba,
 // no toca fórmulas ni matrices.
 // ═══════════════════════════════════════
@@ -689,27 +689,234 @@ function fechaLarga(iso){
   const [y,m,d]=iso.split('-').map(Number); // fecha local: new Date('AAAA-MM-DD') la toma en UTC y puede correr un día
   return new Date(y,m-1,d).toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'});
 }
+// ═══════════════════════════════════════
+// INFORME EN WORD (v3.1, 2026-11-09)
+// Solo presentación: lee S y llama a calcAppServer / calcDBSQL / calcDBHANA y a
+// SW_SQL / SW_HANA. No cambia fórmulas ni matrices. El texto sigue el formato
+// "Informe de revisión" de Heinsohn; todas las cifras salen de la calculadora.
+// ═══════════════════════════════════════
+const HBT='Heinsohn Business Technology';
+function miles(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
+function gb(n){ return miles(n)+' GB'; }
+function coma(n){ return String(n).replace('.',','); }
+function limpiarTexto(s){ return String(s==null?'':s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g,''); }
+function lineas(s){ return limpiarTexto(s).split(/\r?\n/).map(x=>x.trim()).filter(Boolean); }
+function fechaCorta(iso){ const [y,m,d]=iso.split('-'); return d+'/'+m+'/'+y; }
+// App Server sin usuarios RDP: mismo cálculo con 0 usuarios (se restaura el estado al terminar)
+function appSinUsuarios(){
+  const bak={users:S.users,conexion:S.conexion};
+  S.users=0; S.conexion='appserver';
+  try{ return calcAppServer(); } finally{ S.users=bak.users; S.conexion=bak.conexion; }
+}
+function soWindows(sw){
+  const l=(sw.ws||[]).filter(w=>!/upgrade only/.test(w));
+  const w=l.includes('WS 2022')?'WS 2022':l[l.length-1];
+  return w.replace(/^WS /,'Windows Server ');
+}
+function soSuse(sw){
+  const m=/^SLES (\d+) (.+)$/.exec(sw.sles||'');
+  if(!m) return {txt:'SUSE Linux Enterprise Server',vigente:true};
+  const sps=m[2].split(' / '), last=sps[sps.length-1];
+  return {txt:'SUSE Linux Enterprise Server '+m[1]+' '+last, vigente:parseInt((/SP(\d+)/.exec(last)||[])[1],10)>=7};
+}
+function buildReportData(f){
+  const isH=S.db==='hana', nueva=S.tipo==='nueva';
+  const fi=FP[S.db].find(x=>x.v===S.fp)||{};
+  const sw=isH?(SW_HANA[S.fp]||SW_HANA['2602']):(SW_SQL[S.fp]||SW_SQL['2602']);
+  const db=isH?calcDBHANA():calcDBSQL();
+  const app=calcAppServer(), app0=appSinUsuarios();
+  const virt=f.modelo!=='fisico', modelo=virt?'Virtualizado':'Físico';
+  const pc=S.conexion==='pcusuario', pcUsers=pc?S.users-S.usersApp:0;
+  const verSAP=S.fp==='9.3'?'SAP 9.3 PL14':'SAP 10 '+(fi.l||S.fp).replace(/^10\.0 /,'');
+  const cliente=limpiarTexto(f.cliente).trim(), para=limpiarTexto(f.para).trim();
+  const winSO=soWindows(sw), suse=soSuse(sw);
+  const info=[
+    ['Fecha de revisión',fechaCorta(f.fecha)],
+    ...(limpiarTexto(f.tiempo).trim()?[['Tiempo de la actividad',limpiarTexto(f.tiempo).trim()]]:[]),
+    ['Nombre del Cliente',cliente],
+    ['Dirigido a',para],
+    ['Tipo de Consultoría','Validación de servidores para '+(nueva?'instalación':'actualización')+' SAP'],
+    ['Arquitectura BD',isH?'SAP HANA':'SQL Server'],
+    ['Versión SAP a '+(nueva?'instalar':'actualizar'),verSAP]
+  ];
+  const bloqueDB={
+    titulo:isH?'Servidor SUSE Linux (SAP HANA)':'Servidor Windows SQL',
+    filas:[
+      ['Modelo de Sistema',modelo],
+      ['S.O. Base',isH?suse.txt:winSO],
+      ['Servidor Virtualizado',virt?'Sí':'No'],
+      ['RAM',gb(db.recRAM)],
+      ['Capacidad de almacenamiento',gb(db.dTotal)],
+      ['Procesador',db.cores+' Core']
+    ]
+  };
+  const bloqueApp={
+    titulo:'Servidor Windows de Aplicaciones',
+    filas:[
+      ['Modelo de Sistema',modelo],
+      ['S.O. Base',winSO],
+      ['Servidor Virtualizado',virt?'Sí':'No'],
+      ['RAM',gb(app0.recRAM)+' sin usuarios RDP / '+gb(app.recRAM)+' con usuarios RDP'],
+      ['Capacidad de almacenamiento',gb(app.dTotal)],
+      ['Procesador',app0.cores+' Core sin usuarios RDP / '+app.cores+' Core con usuarios RDP']
+    ]
+  };
+  // ── Observaciones ──
+  const obs=[];
+  if(isH){
+    obs.push('Servidor de base de datos: la capacidad de almacenamiento de '+gb(db.dTotal)+(nueva?' es fija para una instalación nueva':' se calcula sobre el tamaño de la base de datos ('+S.dbsize+' GB)')+' y se distribuye así: sistema operativo '+gb(db.dSO)+', /hana/data '+gb(db.dData)+', /hana/shared '+gb(db.dShared)+', /hana/log '+gb(db.dLog)+', /usr/sap '+gb(db.dUsrSap)+' y /backup '+gb(db.dBackup)+'. Debe ser hardware certificado para SAP HANA (SAP Note 2382775).');
+    obs.push(nueva
+      ?'La RAM de '+gb(db.recRAM)+' (mínimo '+gb(db.minRAM)+') se define según el número de usuarios ('+S.users+').'
+      :'La RAM de '+gb(db.recRAM)+' (mínimo '+gb(db.minRAM)+') se calcula sobre el tamaño de la base de datos ('+S.dbsize+' GB × 1,5), porque SAP HANA trabaja cargando los datos en memoria.');
+  }else{
+    obs.push('Servidor de base de datos: la capacidad de almacenamiento de '+gb(db.dTotal)+(nueva?' se estima por el número de usuarios ('+S.users+')':' se calcula para las bases de datos ('+S.dbsize+' GB), copias de seguridad y sistema operativo')+' y se distribuye así: sistema operativo '+gb(db.dOS)+', datos '+gb(db.dData)+', log '+gb(db.dLog)+', TempDB '+gb(db.dTemp)+' y copias de seguridad '+gb(db.dBack)+'.'+(nueva?' Debe ajustarse cuando se conozca el tamaño real de la base de datos.':'')+' Para la instalación de SQL Server debe ir habilitado el collation SQL_Latin1_General_CP1_CI_AS.');
+    obs.push(nueva
+      ?'La RAM de '+gb(db.recRAM)+' (mínimo '+gb(db.minRAM)+') equivale a 16 GB para SQL Server, 1 GB por usuario ('+S.users+') y 4 GB adicionales.'
+      :'La RAM de '+gb(db.recRAM)+' (mínimo '+gb(db.minRAM)+') incluye el buffer pool de SQL Server ('+S.bufferPct+' % de la base de datos, '+gb(S.dbsize*S.bufferPct/100)+'), el sistema operativo, SQL Server y las sesiones de los usuarios.');
+  }
+  obs.push('Servidor de aplicaciones: la RAM y los núcleos del procesador dependen de los usuarios que se conectan por RDP ('+app.usersOnApp+(pc?' de '+S.users:'')+'). La capacidad de almacenamiento de '+gb(app.dTotal)+' es para el sistema operativo ('+gb(app.dOS)+') y las instalaciones de SAP ('+gb(app.dSAP)+').'+((!pc&&S.addons>0)?' Incluye el consumo de '+S.addons+' add-on(s).':''));
+  if(pc) obs.push('Los '+pcUsers+' usuarios restantes ejecutan SAP Business One en su propio equipo y se conectan directo a la base de datos. Cada equipo requiere como mínimo 4 GB de RAM (recomendado 8 a 16 GB), procesador de 4 núcleos o más y disco SSD de 256 GB'+(S.addons>0?', y los '+S.addons+' add-on(s) se instalan en cada equipo':'')+'.');
+  obs.push(isH
+    ?'Versiones de SUSE Linux soportadas para '+verSAP+': '+sw.sles+'. Versión elegida: '+suse.txt+(suse.vigente?' (vigente).':' (fuera de soporte general).')+' Windows Server soportados: '+sw.ws.map(w=>w.replace(/^WS /,'')).join(', ')+'.'
+    :'Versiones de SQL Server soportadas para '+verSAP+': '+sw.sql.map(s=>{const o=/SQL (2012|2014|2016|2017|2019)$/.test(s);return s.replace('SQL','SQL Server')+(o?' (fuera de distribución)':'');}).join(', ')+'. Las versiones fuera de distribución ya no se venden y no se recomiendan para servidores nuevos. Windows Server soportados: '+sw.ws.map(w=>w.replace(/^WS /,'')).join(', ')+'.');
+  const cierre=[
+    'El cálculo para definir los requerimientos de la base de datos y del servidor de aplicaciones se basa en '+(nueva?'la cantidad de usuarios (estimación para una base de datos nueva)':'el tamaño total de las bases de datos ('+S.dbsize+' GB)')+', así como en la cantidad de usuarios concurrentes en el sistema ('+S.users+').',
+    'Tenga en cuenta que el consumo requerido indicado debe mantenerse para garantizar el óptimo funcionamiento del sistema y así evitar lentitud o fallas repentinas en su operatividad.',
+    'Recuerde que, si maneja servidor RDP para conexiones a los usuarios, cada uno deberá contar con al menos '+coma(app.ramPU)+' GB de memoria RAM. Si fuesen '+app.usersOnApp+' usuarios su total de memoria sería de '+coma(app.ramPU*app.usersOnApp)+' GB.'
+  ];
+  const resultado='Antes de iniciar el proceso de '+(nueva?'instalación':'actualización')+', se deben tener estas recomendaciones de configuración de hardware aplicadas. En dado caso que esto no ocurra, podrá experimentar total lentitud en el sistema y fallos sobre los cuales el sistema deje de operar. Por favor tenga en cuenta mantener dichas recomendaciones para un óptimo funcionamiento. Tan pronto estos requerimientos sean configurados, se programará una sesión sobre la cual se certificará el servidor para dar inicio a la '+(nueva?'instalación':'actualización')+'.';
+  // nombre de archivo sin tildes ni caracteres prohibidos: algunos navegadores ignoran el nombre si trae tildes
+  const nombreArchivo=('Informe de revision - '+cliente+' - '+f.fecha).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9 ._()-]+/g,' ').replace(/\s+/g,' ').trim()+'.docx';
+  return {
+    cliente, titulo:'INFORME DE REVISIÓN '+cliente.toUpperCase(), info,
+    participantes:(f.participantes||[]).map(p=>({n:limpiarTexto(p.n).trim(),c:limpiarTexto(p.c).trim(),e:limpiarTexto(p.e).trim()})),
+    objetivo:'Realizar revisión de los servidores para calcular y certificar los requerimientos necesarios para el funcionamiento del sistema basado en '+(nueva?'la cantidad de usuarios previstos':'la cantidad de licencias actuales y tamaño de las bases de datos')+'.',
+    actividades:'Definir las características requeridas para la construcción del hardware en servidores '+(virt?'virtualizados':'físicos')+'. Las especificaciones se calculan de la siguiente manera:',
+    bloques:[bloqueDB,bloqueApp], obs, cierre, resultado,
+    consideraciones:lineas(f.consideraciones), compromisos:lineas(f.compromisos),
+    archivo:nombreArchivo
+  };
+}
+
+// ── .docx sin librerías: un .docx es un zip de XML (aquí sin compresión) ──
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(b){ let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=CRC_T[(c^b[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function zipStore(files){
+  const enc=new TextEncoder(), parts=[], central=[]; let off=0;
+  const d=new Date(), dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(), tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  files.forEach(f=>{
+    const nm=enc.encode(f.name), data=enc.encode(f.text), crc=crc32(data), n=data.length;
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true); lh.setUint16(10,tm,true); lh.setUint16(12,dt,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,n,true); lh.setUint32(22,n,true); lh.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(lh.buffer),nm,data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true); ch.setUint16(12,tm,true); ch.setUint16(14,dt,true);
+    ch.setUint32(16,crc,true); ch.setUint32(20,n,true); ch.setUint32(24,n,true); ch.setUint16(28,nm.length,true); ch.setUint32(42,off,true);
+    central.push(new Uint8Array(ch.buffer),nm);
+    off+=30+nm.length+n;
+  });
+  const csize=central.reduce((a,p)=>a+p.length,0), end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true); end.setUint16(8,files.length,true); end.setUint16(10,files.length,true); end.setUint32(12,csize,true); end.setUint32(16,off,true);
+  const all=[...parts,...central,new Uint8Array(end.buffer)], out=new Uint8Array(all.reduce((a,p)=>a+p.length,0));
+  let o=0; all.forEach(p=>{out.set(p,o);o+=p.length;});
+  return out;
+}
+function xe(s){ return limpiarTexto(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function wRun(t,o={}){ return '<w:r><w:rPr>'+(o.b?'<w:b/>':'')+(o.color?'<w:color w:val="'+o.color+'"/>':'')+(o.sz?'<w:sz w:val="'+o.sz+'"/>':'')+'</w:rPr><w:t xml:space="preserve">'+xe(t)+'</w:t></w:r>'; }
+function wP(t,o={}){
+  return '<w:p><w:pPr>'+(o.style?'<w:pStyle w:val="'+o.style+'"/>':'')+(o.keep?'<w:keepNext/>':'')+(o.num?'<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>':'')+(o.before?'<w:spacing w:before="'+o.before+'"/>':'')+(o.jc?'<w:jc w:val="'+o.jc+'"/>':'')+'</w:pPr>'+(t===''?'':wRun(t,o))+'</w:p>';
+}
+function wCell(w,t,o={}){
+  return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+(o.fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+o.fill+'"/>':'')+'</w:tcPr><w:p><w:pPr><w:keepNext/><w:spacing w:before="40" w:after="40"/></w:pPr>'+wRun(t,o)+'</w:p></w:tc>';
+}
+const W_BORDERS='<w:tblBorders>'+['top','left','bottom','right','insideH','insideV'].map(b=>'<w:'+b+' w:val="single" w:sz="4" w:space="0" w:color="8EA9C1"/>').join('')+'</w:tblBorders>';
+function wTable(cols,rows,o={}){
+  const tot=cols.reduce((a,b)=>a+b,0);
+  let x='<w:tbl><w:tblPr><w:tblW w:w="'+tot+'" w:type="dxa"/>'+W_BORDERS+'<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>'+cols.map(c=>'<w:gridCol w:w="'+c+'"/>').join('')+'</w:tblGrid>';
+  rows.forEach((r,i)=>{
+    const head=o.head&&i===0;
+    x+='<w:tr><w:trPr><w:cantSplit/>'+(head?'<w:tblHeader/>':'')+'</w:trPr>'+r.map((c,j)=>wCell(cols[j],c,head?{fill:'1F4E79',color:'FFFFFF',b:true}:(o.labels&&j===0?{fill:'D9EAF7',b:true}:{}))).join('')+'</w:tr>';
+  });
+  return x+'</w:tbl>';
+}
+function buildDocx(d){
+  const body=[];
+  body.push(wP(d.titulo,{style:'Title'}));
+  body.push(wP('1. Información del Cliente',{style:'Heading1'}));
+  body.push(wTable([3400,5960],d.info,{labels:true}));
+  body.push(wP('2. Participantes de la revisión',{style:'Heading1'}));
+  body.push(wTable([3300,2700,3360],[['Nombre','Cargo','Empresa'],...d.participantes.map(p=>[p.n,p.c,p.e])],{head:true}));
+  body.push(wP('3. Objetivo de la revisión',{style:'Heading1'}));
+  body.push(wP(d.objetivo));
+  body.push(wP('4. Actividades',{style:'Heading1'}));
+  body.push(wP(d.actividades,{keep:true}));
+  d.bloques.forEach((b,i)=>{
+    body.push(wP(String.fromCharCode(97+i)+'. '+b.titulo+':',{b:true,keep:true,before:i?240:120}));
+    body.push(wTable([3400,5960],b.filas,{labels:true}));
+  });
+  body.push(wP('En referencia a los puntos anteriormente descritos, se realizan las siguientes observaciones:',{keep:true,before:240}));
+  d.obs.forEach(t=>body.push(wP(t,{num:true})));
+  d.cierre.forEach(t=>body.push(wP(t)));
+  body.push(wP('5. Resultado',{style:'Heading1'}));
+  body.push(wP(d.resultado));
+  let n=6;
+  if(d.consideraciones.length){ body.push(wP(n+++'. Consideraciones',{style:'Heading1'})); d.consideraciones.forEach(t=>body.push(wP(t,{num:true}))); }
+  if(d.compromisos.length){ body.push(wP(n+++'. Compromisos',{style:'Heading1'})); d.compromisos.forEach(t=>body.push(wP(t,{num:true}))); }
+  const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  const hdr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr '+NS+'><w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="4" w:color="1F4E79"/></w:pBdr><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs></w:pPr>'+wRun('Revisión Técnica',{b:true,color:'1F4E79',sz:18})+'<w:r><w:tab/></w:r>'+wRun('Código: PT-GINF-001 · Versión formato: 2022/11/15',{color:'555555',sz:18})+'</w:p></w:hdr>';
+  const fld=(c)=>'<w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:instrText xml:space="preserve"> '+c+' </w:instrText></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>';
+  const ftr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr '+NS+'><w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="4" w:space="4" w:color="8EA9C1"/></w:pBdr><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs></w:pPr>'+wRun('Confidencial © Desarrollado por '+HBT,{color:'555555',sz:16})+'<w:r><w:tab/></w:r>'+wRun('Página ',{color:'555555',sz:16})+fld('PAGE')+wRun(' de ',{color:'555555',sz:16})+fld('NUMPAGES')+'</w:p></w:ftr>';
+  const doc='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document '+NS+'><w:body>'+body.join('')+'<w:sectPr><w:headerReference w:type="default" r:id="rId10"/><w:footerReference w:type="default" r:id="rId11"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1296" w:left="1440" w:header="708" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>';
+  const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles '+NS+'><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="es-CO"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>'
+    +'<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>'
+    +'<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="120" w:after="240"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:color w:val="1F4E79"/><w:sz w:val="32"/></w:rPr></w:style>'
+    +'<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="320" w:after="120"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:color w:val="1F4E79"/><w:sz w:val="26"/></w:rPr></w:style></w:styles>';
+  const numbering='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering '+NS+'><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="540" w:hanging="270"/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
+  const R='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  return zipStore([
+    {name:'[Content_Types].xml',text:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>'},
+    {name:'_rels/.rels',text:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+R+'/officeDocument" Target="word/document.xml"/></Relationships>'},
+    {name:'word/_rels/document.xml.rels',text:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+R+'/styles" Target="styles.xml"/><Relationship Id="rId2" Type="'+R+'/numbering" Target="numbering.xml"/><Relationship Id="rId10" Type="'+R+'/header" Target="header1.xml"/><Relationship Id="rId11" Type="'+R+'/footer" Target="footer1.xml"/></Relationships>'},
+    {name:'word/document.xml',text:doc},{name:'word/styles.xml',text:styles},{name:'word/numbering.xml',text:numbering},
+    {name:'word/header1.xml',text:hdr},{name:'word/footer1.xml',text:ftr}
+  ]);
+}
+function descargarBlob(bytes,nombre){
+  const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+
+// ── Diálogo "Generar informe" ──
+function addPart(n,c,e){
+  const row=document.createElement('div'); row.className='part-row';
+  row.innerHTML='<input class="dim-num" placeholder="Nombre" aria-label="Nombre del participante" required maxlength="80" autocomplete="off"><input class="dim-num" placeholder="Cargo" aria-label="Cargo" required maxlength="60" autocomplete="off"><input class="dim-num" placeholder="Empresa" aria-label="Empresa" required maxlength="80" autocomplete="off"><button type="button" class="part-del" aria-label="Quitar participante" onclick="delPart(this)">×</button>';
+  const i=row.querySelectorAll('input'); i[0].value=n||''; i[1].value=c||''; i[2].value=e||'';
+  document.getElementById('inf-parts').appendChild(row);
+}
+function delPart(b){ if(document.getElementById('inf-parts').children.length>1) b.parentNode.remove(); }
 function openReport(){
   const f=document.getElementById('inf-fecha');
   if(!f.value) f.value=hoyISO();
+  if(!document.getElementById('inf-parts').children.length) addPart('Jhonatan Andica Calderón','Consultor SAP',HBT);
   document.getElementById('dlg-informe').showModal();
 }
-function printReport(e){
+function descargarInforme(e){
   e.preventDefault();
-  const para=document.getElementById('inf-para');
-  if(!para.value.trim()){ para.value=''; para.reportValidity(); return false; }
-  const fp=(FP[S.db].find(f=>f.v===S.fp)||{}).l||S.fp;
-  // textContent: lo que escribe el usuario nunca se interpreta como HTML
-  document.getElementById('rh-para').textContent=para.value.trim();
-  document.getElementById('rh-fecha').textContent=fechaLarga(document.getElementById('inf-fecha').value);
-  document.getElementById('rh-conf').textContent=
-    `${DB_LBL[S.db]} · ${S.tipo==='nueva'?'Instalación nueva':'Actualización (BD '+S.dbsize+' GB)'} · ${fp} · ${S.users} usuarios`;
+  for(const id of ['inf-cliente','inf-para']){ // un texto de solo espacios no cuenta como lleno
+    const el=document.getElementById(id);
+    if(!el.value.trim()){ el.value=''; el.reportValidity(); return false; }
+  }
+  const v=id=>document.getElementById(id).value.trim();
+  const partes=[...document.querySelectorAll('#inf-parts .part-row')].map(r=>{ const i=r.querySelectorAll('input'); return {n:i[0].value.trim(),c:i[1].value.trim(),e:i[2].value.trim()}; }).filter(p=>p.n);
+  const d=buildReportData({cliente:v('inf-cliente'),para:v('inf-para'),fecha:v('inf-fecha'),tiempo:v('inf-tiempo'),modelo:v('inf-modelo'),participantes:partes,consideraciones:document.getElementById('inf-consid').value,compromisos:document.getElementById('inf-compr').value});
+  descargarBlob(buildDocx(d),d.archivo);
   document.getElementById('dlg-informe').close();
-  document.getElementById('report-head').hidden=false;
-  window.print();
   return false;
 }
-window.addEventListener('afterprint',()=>{ document.getElementById('report-head').hidden=true; });
 
 // INIT
 if(document.readyState==='loading'){
