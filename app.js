@@ -696,6 +696,8 @@ function fechaLarga(iso){
 // "Informe de revisión" de Heinsohn; todas las cifras salen de la calculadora.
 // ═══════════════════════════════════════
 const HBT='Heinsohn Business Technology';
+// Rango de marcas de acento (U+0300 a U+036F) armado con códigos: así el archivo se sube a Drive byte por byte (el conector convertía el texto escapado)
+const MARCAS_ACENTO=new RegExp('['+String.fromCharCode(0x300)+'-'+String.fromCharCode(0x36f)+']','g');
 function miles(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
 function gb(n){ return miles(n)+' GB'; }
 function coma(n){ return String(n).replace('.',','); }
@@ -804,7 +806,7 @@ function buildReportData(f){
   ];
   const resultado='Antes de iniciar el proceso de '+(nueva?'instalación':'actualización')+', se deben tener estas recomendaciones de configuración de hardware aplicadas. En dado caso que esto no ocurra, podrá experimentar total lentitud en el sistema y fallos sobre los cuales el sistema deje de operar. Por favor tenga en cuenta mantener dichas recomendaciones para un óptimo funcionamiento. Tan pronto estos requerimientos sean configurados, se programará una sesión sobre la cual se certificará el servidor para dar inicio a la '+(nueva?'instalación':'actualización')+'.';
   // nombre de archivo sin tildes ni caracteres prohibidos: algunos navegadores ignoran el nombre si trae tildes
-  const nombreArchivo=('Informe de revision - '+cliente+' - '+f.fecha).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9 ._()-]+/g,' ').replace(/\s+/g,' ').trim()+'.docx';
+  const nombreArchivo=('Informe de revision - '+cliente+' - '+f.fecha).normalize('NFD').replace(MARCAS_ACENTO,'').replace(/[^A-Za-z0-9 ._()-]+/g,' ').replace(/\s+/g,' ').trim()+'.docx';
   return {
     cliente, titulo:'INFORME DE REVISIÓN '+cliente.toUpperCase(), info,
     participantes:(f.participantes||[]).map(p=>({n:limpiarTexto(p.n).trim(),c:limpiarTexto(p.c).trim(),e:limpiarTexto(p.e).trim()})),
