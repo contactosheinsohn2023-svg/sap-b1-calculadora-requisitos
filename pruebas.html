@@ -19,7 +19,7 @@
 <ul id="out"><li>Corriendo…</li></ul>
 <iframe id="app" src="index.html"></iframe>
 <script>
-// Valores validados (v2.3 a v3.1, 2026-11-09). Cambiarlos solo cuando Ghost apruebe un cambio de fórmula.
+// Valores validados (v2.3 a v3.2, 2026-11-09). Cambiarlos solo cuando Ghost apruebe un cambio de fórmula.
 const BASE={db:'sql',fp:'2605',deploy:'onpremise',users:10,usersApp:3,addons:0,dbsize:100,bufferPct:40,tipo:'nueva',conexion:'appserver'};
 const CASOS={
   'A · SQL nueva, 10 usuarios':{s:{},app:{recRAM:40,minRAM:24,cores:2,usersOnApp:10},db:{recRAM:32,minRAM:20,cores:4,dTotal:450,dData:100,dLog:30}},
@@ -56,8 +56,8 @@ document.getElementById('app').addEventListener('load',e=>{
     const hay=w.document.getElementById('main').textContent.includes(txt);
     linea(hay===debe,`Texto ${debe?'presente':'ausente'}: "${txt}"`);
   }
-  // Informe en Word (v3.1): textos con cifras de la calculadora y archivo .docx
-  const FORM={cliente:'Cliente X',para:'Luis',fecha:'2026-11-09',tiempo:'',modelo:'virtual',participantes:[{n:'A',c:'B',e:'C'}],consideraciones:'',compromisos:''};
+  // Informe en Word (v3.1 y v3.2): textos con cifras de la calculadora y archivo .docx
+  const FORM={cliente:'Cliente X',fecha:'2026-11-09',tiempo:'',participantes:[{n:'A',c:'B',e:'C'}],consideraciones:'',compromisos:''};
   const fila=(d,i,k)=>(d.bloques[i].filas.find(r=>r[0]===k)||[])[1];
   const eq=(nombre,real,esperado)=>linea(real===esperado,'Informe · '+nombre+(real===esperado?'':' → '+real+' (esperado '+esperado+')'));
   Object.assign(w.S,BASE,{tipo:'actualizacion',dbsize:500,users:40,bufferPct:40});
@@ -77,6 +77,31 @@ document.getElementById('app').addEventListener('load',e=>{
   linea(bytes[0]===0x50&&bytes[1]===0x4B&&t1.includes('&lt;b&gt;X&lt;/b&gt;')&&!t1.includes('X</b>'),'Informe · .docx es un zip y el texto del usuario va escapado');
   const t2=txt(w.buildReportData(FORM)), t3=txt(w.buildReportData({...FORM,consideraciones:'Uno',compromisos:'Dos'}));
   linea(!t2.includes('Consideraciones')&&!t2.includes('Compromisos')&&t3.includes('6. Consideraciones')&&t3.includes('7. Compromisos'),'Informe · Consideraciones y Compromisos solo salen si se llenan');
+  // v3.2: cliente = dirigido a, servidores desde el despliegue, versión de SQL a instalar y licencias de Microsoft
+  const info=(d,k)=>(d.info.find(r=>r[0]===k)||[])[1];
+  Object.assign(w.S,BASE);
+  d=w.buildReportData({...FORM,tiempo:'90 minutos'});
+  eq('cliente y dirigido a son el mismo campo',info(d,'Nombre del Cliente (dirigido a)')+' | '+(info(d,'Dirigido a')===undefined),'Cliente X | true');
+  eq('tiempo de la actividad (texto)',info(d,'Tiempo de la actividad'),'90 minutos');
+  for(const [dep,modelo,virt,act] of [['onpremise','Físico','No','físicos'],['virtual','Virtualizado','Sí','virtualizados'],['citrix','Físico (Citrix/WTS)','No','físicos']]){
+    Object.assign(w.S,BASE,{deploy:dep});
+    d=w.buildReportData(FORM);
+    eq('servidores según el despliegue '+dep,[fila(d,0,'Modelo de Sistema'),fila(d,1,'Modelo de Sistema'),fila(d,0,'Servidor Virtualizado'),d.actividades.includes('servidores '+act)].join(' | '),[modelo,modelo,virt,true].join(' | '));
+  }
+  for(const [db,fp,esperado] of [['sql','2605','SQL Server 2022'],['sql','2411','SQL Server 2022'],['sql','2402','SQL Server 2019'],['sql','2102','SQL Server 2019'],['sql','9.3','SQL Server 2017'],['hana','2605','SAP HANA']]){
+    Object.assign(w.S,BASE,{db,fp});
+    eq('Arquitectura BD '+db+' FP '+fp,info(w.buildReportData(FORM),'Arquitectura BD'),esperado);
+  }
+  Object.assign(w.S,BASE); d=w.buildReportData(FORM); let ob=d.obs.join(' ');
+  linea(ob.includes('Versión de SQL Server a instalar: SQL Server 2022')&&ob.includes('Microsoft comercializa hoy solo SQL Server 2025')&&ob.includes('hasta el 11 de enero de 2033')&&ob.includes('consultado el 9 de noviembre de 2026'),'Informe · SQL 2605: versión a instalar y licenciamiento de Microsoft');
+  linea(ob.includes('Windows Server 2022 (soporte de Microsoft hasta el 14 de octubre de 2031)'),'Informe · Windows Server 2022 con su fecha de soporte');
+  Object.assign(w.S,BASE,{fp:'2102'}); ob=w.buildReportData(FORM).obs.join(' ');
+  linea(ob.includes('Ya sin soporte de Microsoft: SQL Server 2016.')&&ob.includes('SQL Server 2019')&&ob.includes('hasta el 8 de enero de 2030'),'Informe · FP 2102: SQL 2016 sin soporte a la fecha de revisión');
+  Object.assign(w.S,BASE,{fp:'2102'}); ob=w.buildReportData({...FORM,fecha:'2026-01-10'}).obs.join(' ');
+  linea(!ob.includes('Ya sin soporte de Microsoft')&&!ob.includes('SQL Server 2016 (sin'),'Informe · antes del 14-jul-2026 SQL 2016 todavía tenía soporte');
+  Object.assign(w.S,BASE,{db:'hana'}); ob=w.buildReportData(FORM).obs.join(' ');
+  linea(!ob.includes('Versión de SQL Server a instalar')&&ob.includes('Sistema operativo Windows Server'),'Informe · HANA no habla de versiones de SQL Server y sí del Windows Server');
+  linea(w.document.querySelectorAll('#inf-para,#inf-modelo').length===0&&!!w.document.getElementById('inf-srv'),'Informe · el formulario ya no pide "Dirigido a" ni el tipo de servidor');
   const fallas=out.filter(l=>l.includes('FALLA')).length;
   out.unshift(`<li class="${fallas?'ko':'ok'}"><b>${fallas?fallas+' prueba(s) fallan':'Todas las pruebas pasan'}</b></li>`);
   document.getElementById('out').innerHTML=out.join('');

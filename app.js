@@ -690,7 +690,7 @@ function fechaLarga(iso){
   return new Date(y,m-1,d).toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'});
 }
 // ═══════════════════════════════════════
-// INFORME EN WORD (v3.1, 2026-11-09)
+// INFORME EN WORD (v3.1, 2026-11-09; ajustes v3.2, 2026-11-09)
 // Solo presentación: lee S y llama a calcAppServer / calcDBSQL / calcDBHANA y a
 // SW_SQL / SW_HANA. No cambia fórmulas ni matrices. El texto sigue el formato
 // "Informe de revisión" de Heinsohn; todas las cifras salen de la calculadora.
@@ -719,24 +719,36 @@ function soSuse(sw){
   const sps=m[2].split(' / '), last=sps[sps.length-1];
   return {txt:'SUSE Linux Enterprise Server '+m[1]+' '+last, vigente:parseInt((/SP(\d+)/.exec(last)||[])[1],10)>=7};
 }
+// ── Soporte y licencias de Microsoft (v3.2) ──
+// Datos consultados el 2026-11-09 en las páginas de Microsoft (ciclo de vida y Product Terms).
+// Actualizar esta fecha y estas tablas cada vez que se vuelvan a consultar.
+const LIC_FECHA='2026-11-09';
+const SQL_FIN={'2012':'2022-07-12','2014':'2024-07-09','2016':'2026-07-14','2017':'2027-10-12','2019':'2030-01-08','2022':'2033-01-11'}; // fin del soporte extendido
+const WS_FIN={'2012 R2':'2023-10-10','2016':'2027-01-12','2019':'2029-01-09','2022':'2031-10-14'};
+function anioSQL(s){ return (/(\d{4})$/.exec(s)||[])[1]||''; }
+// SQL Server a instalar: la versión más reciente que el Feature Package soporta (en 2605 es SQL Server 2022)
+function sqlRecomendada(sw){
+  const v=(sw.sql||[]).map(anioSQL).filter(Boolean).map(Number);
+  return v.length?'SQL Server '+Math.max(...v):'';
+}
+function frSoporte(fin,ref){ return fin<=ref?'sin soporte de Microsoft desde el '+fechaLarga(fin):'soporte de Microsoft hasta el '+fechaLarga(fin); }
 function buildReportData(f){
   const isH=S.db==='hana', nueva=S.tipo==='nueva';
   const fi=FP[S.db].find(x=>x.v===S.fp)||{};
   const sw=isH?(SW_HANA[S.fp]||SW_HANA['2602']):(SW_SQL[S.fp]||SW_SQL['2602']);
   const db=isH?calcDBHANA():calcDBSQL();
   const app=calcAppServer(), app0=appSinUsuarios();
-  const virt=f.modelo!=='fisico', modelo=virt?'Virtualizado':'Físico';
+  const virt=S.deploy==='virtual', modelo=virt?'Virtualizado':(S.deploy==='citrix'?'Físico (Citrix/WTS)':'Físico'); // sale del tipo de despliegue elegido en la calculadora
   const pc=S.conexion==='pcusuario', pcUsers=pc?S.users-S.usersApp:0;
   const verSAP=S.fp==='9.3'?'SAP 9.3 PL14':'SAP 10 '+(fi.l||S.fp).replace(/^10\.0 /,'');
-  const cliente=limpiarTexto(f.cliente).trim(), para=limpiarTexto(f.para).trim();
-  const winSO=soWindows(sw), suse=soSuse(sw);
+  const cliente=limpiarTexto(f.cliente).trim();
+  const winSO=soWindows(sw), suse=soSuse(sw), sqlRec=isH?'':sqlRecomendada(sw), ref=f.fecha;
   const info=[
     ['Fecha de revisión',fechaCorta(f.fecha)],
     ...(limpiarTexto(f.tiempo).trim()?[['Tiempo de la actividad',limpiarTexto(f.tiempo).trim()]]:[]),
-    ['Nombre del Cliente',cliente],
-    ['Dirigido a',para],
+    ['Nombre del Cliente (dirigido a)',cliente],
     ['Tipo de Consultoría','Validación de servidores para '+(nueva?'instalación':'actualización')+' SAP'],
-    ['Arquitectura BD',isH?'SAP HANA':'SQL Server'],
+    ['Arquitectura BD',isH?'SAP HANA':sqlRec],
     ['Versión SAP a '+(nueva?'instalar':'actualizar'),verSAP]
   ];
   const bloqueDB={
@@ -769,16 +781,22 @@ function buildReportData(f){
       ?'La RAM de '+gb(db.recRAM)+' (mínimo '+gb(db.minRAM)+') se define según el número de usuarios ('+S.users+').'
       :'La RAM de '+gb(db.recRAM)+' (mínimo '+gb(db.minRAM)+') se calcula sobre el tamaño de la base de datos ('+S.dbsize+' GB × 1,5), porque SAP HANA trabaja cargando los datos en memoria.');
   }else{
-    obs.push('Servidor de base de datos: la capacidad de almacenamiento de '+gb(db.dTotal)+(nueva?' se estima por el número de usuarios ('+S.users+')':' se calcula para las bases de datos ('+S.dbsize+' GB), copias de seguridad y sistema operativo')+' y se distribuye así: sistema operativo '+gb(db.dOS)+', datos '+gb(db.dData)+', log '+gb(db.dLog)+', TempDB '+gb(db.dTemp)+' y copias de seguridad '+gb(db.dBack)+'.'+(nueva?' Debe ajustarse cuando se conozca el tamaño real de la base de datos.':'')+' Para la instalación de SQL Server debe ir habilitado el collation SQL_Latin1_General_CP1_CI_AS.');
+    obs.push('Servidor de base de datos: la capacidad de almacenamiento de '+gb(db.dTotal)+(nueva?' se estima por el número de usuarios ('+S.users+')':' se calcula para las bases de datos ('+S.dbsize+' GB), copias de seguridad y sistema operativo')+' y se distribuye así: sistema operativo '+gb(db.dOS)+', datos '+gb(db.dData)+', log '+gb(db.dLog)+', TempDB '+gb(db.dTemp)+' y copias de seguridad '+gb(db.dBack)+'.'+(nueva?' Debe ajustarse cuando se conozca el tamaño real de la base de datos.':''));
     obs.push(nueva
       ?'La RAM de '+gb(db.recRAM)+' (mínimo '+gb(db.minRAM)+') equivale a 16 GB para SQL Server, 1 GB por usuario ('+S.users+') y 4 GB adicionales.'
       :'La RAM de '+gb(db.recRAM)+' (mínimo '+gb(db.minRAM)+') incluye el buffer pool de SQL Server ('+S.bufferPct+' % de la base de datos, '+gb(S.dbsize*S.bufferPct/100)+'), el sistema operativo, SQL Server y las sesiones de los usuarios.');
   }
   obs.push('Servidor de aplicaciones: la RAM y los núcleos del procesador dependen de los usuarios que se conectan por RDP ('+app.usersOnApp+(pc?' de '+S.users:'')+'). La capacidad de almacenamiento de '+gb(app.dTotal)+' es para el sistema operativo ('+gb(app.dOS)+') y las instalaciones de SAP ('+gb(app.dSAP)+').'+((!pc&&S.addons>0)?' Incluye el consumo de '+S.addons+' add-on(s).':''));
   if(pc) obs.push('Los '+pcUsers+' usuarios restantes ejecutan SAP Business One en su propio equipo y se conectan directo a la base de datos. Cada equipo requiere como mínimo 4 GB de RAM (recomendado 8 a 16 GB), procesador de 4 núcleos o más y disco SSD de 256 GB'+(S.addons>0?', y los '+S.addons+' add-on(s) se instalan en cada equipo':'')+'.');
-  obs.push(isH
-    ?'Versiones de SUSE Linux soportadas para '+verSAP+': '+sw.sles+'. Versión elegida: '+suse.txt+(suse.vigente?' (vigente).':' (fuera de soporte general).')+' Windows Server soportados: '+sw.ws.map(w=>w.replace(/^WS /,'')).join(', ')+'.'
-    :'Versiones de SQL Server soportadas para '+verSAP+': '+sw.sql.map(s=>{const o=/SQL (2012|2014|2016|2017|2019)$/.test(s);return s.replace('SQL','SQL Server')+(o?' (fuera de distribución)':'');}).join(', ')+'. Las versiones fuera de distribución ya no se venden y no se recomiendan para servidores nuevos. Windows Server soportados: '+sw.ws.map(w=>w.replace(/^WS /,'')).join(', ')+'.');
+  const consulta='consultado el '+fechaLarga(LIC_FECHA);
+  if(isH){
+    obs.push('Versiones de SUSE Linux soportadas para '+verSAP+': '+sw.sles+'. Versión elegida: '+suse.txt+(suse.vigente?' (vigente).':' (fuera de soporte general).'));
+  }else{
+    const nSql=anioSQL(sqlRec), sinSop=sw.sql.filter(x=>anioSQL(x)!==nSql&&SQL_FIN[anioSQL(x)]&&SQL_FIN[anioSQL(x)]<=ref).map(x=>x.replace('SQL','SQL Server'));
+    obs.push('Versión de SQL Server a instalar: '+sqlRec+' (la más reciente que soporta '+verSAP+'; soportadas por SAP: '+sw.sql.map(x=>x.replace('SQL','SQL Server')).join(', ')+'). Licenciamiento de Microsoft ('+consulta+'): Microsoft comercializa hoy solo SQL Server 2025, que SAP Business One aún no soporta en este Feature Package; '+sqlRec+' se licencia con los derechos de downgrade de esa licencia o con el proveedor, y tiene '+(SQL_FIN[nSql]?frSoporte(SQL_FIN[nSql],ref):'soporte según el ciclo de vida de Microsoft')+'.'+(sinSop.length?' Ya sin soporte de Microsoft: '+sinSop.join(', ')+'.':'')+' Confirmar la disponibilidad con el proveedor de licencias antes de comprar. Para la instalación debe ir habilitado el collation SQL_Latin1_General_CP1_CI_AS.');
+  }
+  const nWs=(/(\d{4})/.exec(winSO)||[])[1];
+  obs.push('Sistema operativo Windows Server: '+winSO+(WS_FIN[nWs]?' ('+frSoporte(WS_FIN[nWs],ref)+')':'')+'. Windows Server soportados por SAP para '+verSAP+': '+sw.ws.map(w=>w.replace(/^WS /,'')).join(', ')+'. Microsoft comercializa hoy Windows Server 2025; las versiones anteriores se licencian con derechos de downgrade según el contrato ('+consulta+'). Confirmar con el proveedor de licencias.');
   const cierre=[
     'El cálculo para definir los requerimientos de la base de datos y del servidor de aplicaciones se basa en '+(nueva?'la cantidad de usuarios (estimación para una base de datos nueva)':'el tamaño total de las bases de datos ('+S.dbsize+' GB)')+', así como en la cantidad de usuarios concurrentes en el sistema ('+S.users+').',
     'Tenga en cuenta que el consumo requerido indicado debe mantenerse para garantizar el óptimo funcionamiento del sistema y así evitar lentitud o fallas repentinas en su operatividad.',
@@ -828,7 +846,7 @@ function wP(t,o={}){
   return '<w:p><w:pPr>'+(o.style?'<w:pStyle w:val="'+o.style+'"/>':'')+(o.keep?'<w:keepNext/>':'')+(o.num?'<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>':'')+(o.before?'<w:spacing w:before="'+o.before+'"/>':'')+(o.jc?'<w:jc w:val="'+o.jc+'"/>':'')+'</w:pPr>'+(t===''?'':wRun(t,o))+'</w:p>';
 }
 function wCell(w,t,o={}){
-  return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+(o.fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+o.fill+'"/>':'')+'</w:tcPr><w:p><w:pPr><w:keepNext/><w:spacing w:before="40" w:after="40"/></w:pPr>'+wRun(t,o)+'</w:p></w:tc>';
+  return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+(o.fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+o.fill+'"/>':'')+'</w:tcPr><w:p><w:pPr>'+(o.keep===false?'':'<w:keepNext/>')+'<w:spacing w:before="40" w:after="40"/></w:pPr>'+wRun(t,o)+'</w:p></w:tc>';
 }
 const W_BORDERS='<w:tblBorders>'+['top','left','bottom','right','insideH','insideV'].map(b=>'<w:'+b+' w:val="single" w:sz="4" w:space="0" w:color="8EA9C1"/>').join('')+'</w:tblBorders>';
 function wTable(cols,rows,o={}){
@@ -836,7 +854,7 @@ function wTable(cols,rows,o={}){
   let x='<w:tbl><w:tblPr><w:tblW w:w="'+tot+'" w:type="dxa"/>'+W_BORDERS+'<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>'+cols.map(c=>'<w:gridCol w:w="'+c+'"/>').join('')+'</w:tblGrid>';
   rows.forEach((r,i)=>{
     const head=o.head&&i===0;
-    x+='<w:tr><w:trPr><w:cantSplit/>'+(head?'<w:tblHeader/>':'')+'</w:trPr>'+r.map((c,j)=>wCell(cols[j],c,head?{fill:'1F4E79',color:'FFFFFF',b:true}:(o.labels&&j===0?{fill:'D9EAF7',b:true}:{}))).join('')+'</w:tr>';
+    x+='<w:tr><w:trPr><w:cantSplit/>'+(head?'<w:tblHeader/>':'')+'</w:trPr>'+r.map((c,j)=>wCell(cols[j],c,Object.assign(head?{fill:'1F4E79',color:'FFFFFF',b:true}:(o.labels&&j===0?{fill:'D9EAF7',b:true}:{}),{keep:i<rows.length-1}))).join('')+'</w:tr>';
   });
   return x+'</w:tbl>';
 }
@@ -902,17 +920,16 @@ function openReport(){
   const f=document.getElementById('inf-fecha');
   if(!f.value) f.value=hoyISO();
   if(!document.getElementById('inf-parts').children.length) addPart('Jhonatan Andica Calderón','Consultor SAP',HBT);
+  document.getElementById('inf-srv').textContent={virtual:'Virtualizados (despliegue elegido: Virtualizado)',citrix:'Físicos con Citrix/WTS (despliegue elegido: Citrix/WTS)',onpremise:'Físicos (despliegue elegido: On-Premise)'}[S.deploy]||'Físicos';
   document.getElementById('dlg-informe').showModal();
 }
 function descargarInforme(e){
   e.preventDefault();
-  for(const id of ['inf-cliente','inf-para']){ // un texto de solo espacios no cuenta como lleno
-    const el=document.getElementById(id);
-    if(!el.value.trim()){ el.value=''; el.reportValidity(); return false; }
-  }
+  const elc=document.getElementById('inf-cliente'); // un texto de solo espacios no cuenta como lleno
+  if(!elc.value.trim()){ elc.value=''; elc.reportValidity(); return false; }
   const v=id=>document.getElementById(id).value.trim();
   const partes=[...document.querySelectorAll('#inf-parts .part-row')].map(r=>{ const i=r.querySelectorAll('input'); return {n:i[0].value.trim(),c:i[1].value.trim(),e:i[2].value.trim()}; }).filter(p=>p.n);
-  const d=buildReportData({cliente:v('inf-cliente'),para:v('inf-para'),fecha:v('inf-fecha'),tiempo:v('inf-tiempo'),modelo:v('inf-modelo'),participantes:partes,consideraciones:document.getElementById('inf-consid').value,compromisos:document.getElementById('inf-compr').value});
+  const d=buildReportData({cliente:v('inf-cliente'),fecha:v('inf-fecha'),tiempo:v('inf-tiempo'),participantes:partes,consideraciones:document.getElementById('inf-consid').value,compromisos:document.getElementById('inf-compr').value});
   descargarBlob(buildDocx(d),d.archivo);
   document.getElementById('dlg-informe').close();
   return false;
