@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Pruebas de la calculadora</title>
+<style>
+  body{font:14px/1.5 system-ui,'Segoe UI',Arial,sans-serif;margin:24px;color:#0f1419;background:#fff}
+  h1{font-size:18px;margin:0 0 4px}
+  p{margin:0 0 16px;color:#4b5563}
+  li{margin:4px 0}
+  .ok{color:#18794e}.ko{color:#c42b2b;font-weight:600}
+  iframe{display:none}
+</style>
+</head>
+<body>
+<h1>Pruebas de la calculadora</h1>
+<p>Abre la calculadora, corre casos fijos y compara con los valores que ya están validados. Si una fórmula o un texto cambia sin querer, aquí sale FALLA. Se abre desde el mismo sitio que index.html (GitHub Pages o un servidor local; no funciona con doble clic en el archivo).</p>
+<ul id="out"><li>Corriendo…</li></ul>
+<iframe id="app" src="index.html"></iframe>
+<script>
+// Valores validados (v2.3 a v3.0, 2026-11-09). Cambiarlos solo cuando Ghost apruebe un cambio de fórmula.
+const BASE={db:'sql',fp:'2605',deploy:'onpremise',users:10,usersApp:3,addons:0,dbsize:100,bufferPct:40,tipo:'nueva',conexion:'appserver'};
+const CASOS={
+  'A · SQL nueva, 10 usuarios':{s:{},app:{recRAM:40,minRAM:24,cores:2,usersOnApp:10},db:{recRAM:32,minRAM:20,cores:4,dTotal:450,dData:100,dLog:30}},
+  'B · HANA actualización 500 GB, 50 usuarios, Citrix, 3 add-ons':{s:{db:'hana',users:50,deploy:'citrix',addons:3,tipo:'actualizacion',dbsize:500},app:{recRAM:104,minRAM:68,cores:10,usersOnApp:50},db:{recRAM:768,minRAM:640,cores:20,dTotal:4500,dData:1500,dLog:500}},
+  'C · SQL actualización 2000 GB, PC de usuario, 100 usuarios, buffer 60 %':{s:{conexion:'pcusuario',users:100,deploy:'virtual',tipo:'actualizacion',dbsize:2000,bufferPct:60},app:{recRAM:24,minRAM:16,cores:2,usersOnApp:3},db:{recRAM:1280,minRAM:560,cores:18,dTotal:8850,dData:3000,dLog:1000}},
+  'D · HANA nueva, 60 usuarios':{s:{db:'hana',users:60},app:{recRAM:136,minRAM:88,cores:10,usersOnApp:60},db:{recRAM:256,minRAM:128,cores:20,dTotal:2000,dData:500,dLog:400}},
+  'E · SQL actualización 1000 GB, 40 usuarios, buffer 25 %, 2 add-ons':{s:{tipo:'actualizacion',dbsize:1000,bufferPct:25,users:40,addons:2},app:{recRAM:112,minRAM:72,cores:8,usersOnApp:40},db:{recRAM:288,minRAM:288,cores:4,dTotal:4450,dData:1500,dLog:500}},
+  'F · PC de usuario, 1 usuario total y 3 en App Server (corrección v3.0)':{s:{conexion:'pcusuario',users:1},app:{recRAM:16,minRAM:12,cores:2,usersOnApp:1},db:{recRAM:24,minRAM:16,cores:4,dTotal:450,dData:100,dLog:30}},
+};
+// Textos que se corrigieron en v3.0: [caso, texto que debe aparecer (true) o no aparecer (false)]
+const TEXTOS=[
+  [{tipo:'actualizacion',dbsize:1000,bufferPct:60},'RAM = BD×60% (600 GB)',true],
+  [{db:'hana'},'Collation',false],
+  [{db:'hana',users:60},'RAM recomendada 256 GB, mínimo 128 GB',true],
+  [{db:'hana',tipo:'actualizacion',dbsize:500},'BD 500 GB · Actualización · BD',false],
+  [{conexion:'pcusuario',users:1},'-2',false],
+  [{conexion:'pcusuario',users:3,usersApp:3},'0 equipos',false],
+  [{conexion:'pcusuario',users:3,usersApp:3},'0 usuarios restantes',false],
+  [{conexion:'pcusuario',users:10,usersApp:3},'7 equipos con SAP Business One',true],
+];
+document.getElementById('app').addEventListener('load',e=>{
+  const w=e.target.contentWindow, out=[];
+  w.S=w.eval('S'); // S se declara con const en app.js: no es propiedad de window, se toma de su ámbito global
+  const linea=(ok,txt)=>out.push(`<li class="${ok?'ok':'ko'}">${ok?'PASA':'FALLA'} · ${txt}</li>`);
+  for(const [nombre,c] of Object.entries(CASOS)){
+    Object.assign(w.S,BASE,c.s);
+    const app=w.calcAppServer(), db=w.S.db==='hana'?w.calcDBHANA():w.calcDBSQL();
+    const mal=[...Object.entries(c.app).filter(([k,v])=>app[k]!==v).map(([k,v])=>`App ${k}=${app[k]} (esperado ${v})`),
+               ...Object.entries(c.db).filter(([k,v])=>db[k]!==v).map(([k,v])=>`BD ${k}=${db[k]} (esperado ${v})`)];
+    linea(!mal.length, nombre+(mal.length?' → '+mal.join(', '):''));
+  }
+  for(const [s,txt,debe] of TEXTOS){
+    Object.assign(w.S,BASE,s); w.render();
+    const hay=w.document.getElementById('main').textContent.includes(txt);
+    linea(hay===debe,`Texto ${debe?'presente':'ausente'}: "${txt}"`);
+  }
+  const fallas=out.filter(l=>l.includes('FALLA')).length;
+  out.unshift(`<li class="${fallas?'ko':'ok'}"><b>${fallas?fallas+' prueba(s) fallan':'Todas las pruebas pasan'}</b></li>`);
+  document.getElementById('out').innerHTML=out.join('');
+  document.title=(fallas?'FALLA':'PASA')+' · Pruebas de la calculadora';
+});
+</script>
+</body>
+</html>
